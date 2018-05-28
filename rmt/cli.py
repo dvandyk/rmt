@@ -95,14 +95,16 @@ def fetch(args):
             index = api.list_items(with_blob = True)
             repo.write_index(index)
             for item_id, item in repo:
-                local_mtime = os.path.getmtime(repo_dir + '/.rmt/blobs/' + item_id)
-                if (local_mtime >= item.mtime):
-                    print('skipping {} (-> {})'.format(item_id, item.full_name()))
-                    continue
+                blob_path = repo_dir + '/.rmt/blobs/' + item_id
+                if os.path.exists(blob_path):
+                    local_mtime = os.path.getmtime(blob_path)
+                    if (local_mtime >= item.mtime):
+                        print('skipping {} (-> {})'.format(item_id, item.full_name()))
+                        continue
 
                 print('fetching {} (-> {})'.format(item_id, item.full_name()))
                 blob = api.download(item_id, item.blob_url)
-                with open(repo_dir + '/.rmt/blobs/' + item_id, 'wb') as blob_file:
+                with open(blob_path, 'wb') as blob_file:
                     blob_file.write(blob)
 
     except Exception as e:
