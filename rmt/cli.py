@@ -57,6 +57,12 @@ def rmt_cli():
 
     ## end of commands
 
+    # add verbosity arg to all commands
+    for p in parser_checkout, parser_fetch, parser_init, parser_status:
+        p.add_argument("-v", "--verbose",
+        help="increase output verbosity",
+        action="store_true")
+
     args = parser.parse_args()
     try:
         args.cmd(args)
@@ -82,7 +88,7 @@ def checkout(args):
                     os.rename('/tmp/' + item_pdf, repo_dir + '/' + item_full_name + '.pdf')
 
     except Exception as e:
-        log.error(str(e))
+        log.error(e, exc_info=args.verbose)
 
 
 def fetch(args):
@@ -108,7 +114,7 @@ def fetch(args):
                     blob_file.write(blob)
 
     except Exception as e:
-        log.error(str(e))
+        log.error(e, exc_info=args.verbose)
 
 
 def init(args):
@@ -147,7 +153,7 @@ def status(args):
                 print('    ' + item_full_name)
 
     except Exception as e:
-        log.error(str(e))
+        log.error(e, exc_info=args.verbose)
 
 
 def _modified(repo_dir, repo):
@@ -174,4 +180,3 @@ def _lock_repo_dir():
 def _find_repo_dir():
     # TODO: traverse current working directory and its parents until we find the top level directory
     return os.getcwd()
-
