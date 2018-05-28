@@ -7,6 +7,7 @@ import os
 import sys
 import uuid
 import zipfile
+import shutil
 
 from rmt import *
 
@@ -85,7 +86,7 @@ def checkout(args):
 
                     item_zip.extract(item_pdf, '/tmp/')
                     os.makedirs(os.path.dirname(repo_dir + '/' + item_full_name), exist_ok = True)
-                    os.rename('/tmp/' + item_pdf, repo_dir + '/' + item_full_name + '.pdf')
+                    shutil.move('/tmp/' + item_pdf, repo_dir + '/' + item_full_name + '.pdf')
 
     except Exception as e:
         log.error(e, exc_info=args.verbose)
