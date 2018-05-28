@@ -65,6 +65,10 @@ def rmt_cli():
         action="store_true")
 
     args = parser.parse_args()
+
+    if args.verbose:
+        log.basicConfig(level=log.DEBUG)
+
     try:
         args.cmd(args)
     except AttributeError:
