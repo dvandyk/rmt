@@ -6,3 +6,9 @@ rmt.egg-info
 
 # Python compiled files
 *.pyc
+
+# eggs
+*.egg-info
+
+# KDE
+.directory

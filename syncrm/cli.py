@@ -4,6 +4,7 @@
 import argparse
 import logging as log
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -11,6 +12,11 @@ import uuid
 import zipfile
 
 from syncrm import *
+
+from .pdf import merge_pdf
+from .rm2svg import rm2svg
+from .svg import svg2pdf
+
 
 def syncrm_cli():
     parser = argparse.ArgumentParser(description="Command line interface to interact with your reMarkable tablet's cloud storage.")
@@ -96,12 +102,13 @@ def checkout(args):
                         item_files.append(item_pdf)
                         item_haspdf = True
 
-                    item_lines = '{}.lines'.format(item_id)
-                    if not item_lines in item_zip.namelist():
+                    _rex = r'{}//?\d\.rm'.format(item_id)  # regex for .rm files
+                    item_lines = [f.replace('//', '/') for f in item_zip.namelist() if re.match(_rex, f)]
+                    if not item_lines:
                         item_haslines = False
 
                     if not item_haslines and not item_haspdf:
-                        log.debug('skipping item {}, since it has neither a .pdf nor a .lines file'.format(item_id))
+                        log.debug('skipping item {}, since it has neither a .pdf nor lines files'.format(item_id))
                         continue
 
                     # extract
@@ -112,44 +119,43 @@ def checkout(args):
                     os.makedirs(item_tmpdir)
                     item_zip.extractall(path=item_tmpdir)
 
-                    if item_haslines:
-                        # create .svg page files from .lines file
-                        log.debug('creating .svg file from .lines file')
-                        item_linesfile = LinesFile(item_tmpdir + item_lines)
-                        item_linespages = item_linesfile.to_svg(item_tmpdir + item_lines)
+                    item_linespages = []
+                    for i, rm_file in enumerate(item_lines):
+                        # create .svg page files from .rm files
+                        log.debug('creating .svg file from .rm file')
+                        
+                        input_path = os.path.join(item_tmpdir, rm_file)
+                        svg_path = os.path.join(item_tmpdir, '{}.page{}.svg'.format(rm_file, i))
+                        pdf_path = os.path.join(item_tmpdir, '{}.page{}.pdf'.format(rm_file, i))
+                        rm2svg(input_path, svg_path)
+                        svg2pdf(svg_path, pdf_path)
+                        item_linespages.append(pdf_path)
 
+                    if item_linespages:
                         # convert all .svg page files to a single .pdf file
-                        call = [
-                            'rsvg-convert',
-                            '-a',
-                            '-f', 'pdf'
-                        ]
-                        call.extend(item_linespages)
-                        call.extend([
-                            '-o', item_tmpdir + item_lines + '.pdf'
-                        ])
-                        log.debug(str(call))
-                        subprocess.call(call)
+                        output_path = os.path.join(item_tmpdir, '{}.pdf'.format(item_id))
+                        merge_pdf(output_path, item_linespages)
 
                     os.makedirs(os.path.dirname(repo_dir + '/' + item_full_name), exist_ok = True)
 
                     if item_haspdf and item_haslines:
-                        log.debug('combining original .pdf file and .annotated.pdf file')
-                        subprocess.call([
-                            'pdftk',
-                            item_tmpdir + item_pdf,
-                            'multistamp',
-                            item_tmpdir + item_lines + '.pdf',
-                            'output',
-                            item_tmpdir + item_id + '.annotated.pdf'
-                        ])
-                        shutil.move(
-                            item_tmpdir + '/' + item_id + '.annotated.pdf',
-                            repo_dir + '/' + item_full_name + '.pdf'
-                        )
+                        pass  # FIXME
+                    #     log.debug('combining original .pdf file and .annotated.pdf file')
+                    #     subprocess.call([
+                    #         'pdftk',
+                    #         item_tmpdir + item_pdf,
+                    #         'multistamp',
+                    #         item_tmpdir + item_lines + '.pdf',
+                    #         'output',
+                    #         item_tmpdir + item_id + '.annotated.pdf'
+                    #     ])
+                    #     shutil.move(
+                    #         item_tmpdir + '/' + item_id + '.annotated.pdf',
+                    #         repo_dir + '/' + item_full_name + '.pdf'
+                    #     )
                     elif item_haslines: # lines only
                         shutil.move(
-                            item_tmpdir + '/' + item_id + '.lines.pdf',
+                            item_tmpdir + '/' + item_id + '.pdf',
                             repo_dir + '/' + item_full_name + '.pdf'
                         )
                     else: # pdf only
